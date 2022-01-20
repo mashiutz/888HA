@@ -68,6 +68,7 @@ function WriteCSV ($Message , $Path = $CSVFile) {
 # Create a DateTime object with future time of now + $ScriptTimeMinutes for script running time
 $ScriptEndTime = (Get-Date).AddMinutes($ScriptTimeMinutes)
 
+# main part of script
 # do-while run for $ScriptTimeMinutes minutes
 do {
     # Check if Notepad process is running.

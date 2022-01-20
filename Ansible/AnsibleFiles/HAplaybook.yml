@@ -1,0 +1,89 @@
+---
+# Windows Installation
+- name: IIS Installation and Configuration
+  hosts: win
+  tasks:
+    - name: Create Test Website Folder
+      ansible.windows.win_file:
+        path: C:\Websites\Test
+        state: directory
+
+    - name: Copy test.txt to Website Folder
+      ansible.windows.win_copy:
+        src: ~/AnsibleFiles/test.txt
+        dest: C:\Websites\Test
+
+    - name: Install IIS Role and Management Console
+      win_feature:
+        name:
+          - Web-Server
+          - Web-Mgmt-Console
+        state: present
+
+    - name: Remove Default Website
+      community.windows.win_iis_website:
+        name: Default Web Site
+        state: absent
+
+    - name: Create Test Website
+      community.windows.win_iis_website:
+        name: Test
+        state: started
+        port: 80
+        physical_path: C:\Websites\Test
+
+    - name: Copy default.html template
+      win_template:
+        src: default.html.j2
+        dest: C:\Websites\Test\default.html
+
+    - name: Recycle DefaultAppPool
+      ansible.windows.win_command: c:\Windows\System32\inetsrv\appcmd.exe recycle apppool /apppool.name:DefaultAppPool
+
+# Linux Installation
+- name: Linux Apache Installation and Configuration
+  hosts: linux
+  vars:
+    - PortNumber: 8080
+  tasks:
+
+    - name: Install Apache
+      dnf:
+        name: httpd
+        state: latest
+
+    - name: Enable httpd service on boot
+      service:
+        name: httpd
+        state: started
+
+    - name: Create firewall rule for httpd
+      firewalld:
+        service: http
+        zone: public
+        permanent: yes
+        immediate: yes
+        state: enabled
+
+    - name: Copy httpd.conf template file
+      template:
+        src: httpd.conf.j2
+        dest: /etc/httpd/conf/httpd.conf
+      notify: Restart httpd service
+    
+    - name: Copy test.txt to website root folder
+      copy:
+       src: test.txt
+       dest: /var/www/html
+    
+    - name: Copy default.html template file
+      template:
+        src: default.html.j2
+        dest: /var/www/html/default.html
+      notify: Restart httpd service       
+
+  handlers:
+    - name: Restart httpd service
+      service:
+        name: httpd
+        state: restarted
