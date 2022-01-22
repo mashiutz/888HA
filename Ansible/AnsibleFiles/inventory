@@ -6,10 +6,10 @@ ws01
 
 [win:vars]
 ansible_user=Administrator
-ansible_password=nelnx11!
+ansible_password=SomePass
 ansible_connection=winrm
 ansible_winrm_server_cert_validation=ignore
 
 [linux:vars]
 ansible_user=root
-ansible_password=nelnx11!
+ansible_password=SomePass
