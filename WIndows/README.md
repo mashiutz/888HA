@@ -15,4 +15,7 @@ https://download.sysinternals.com/files/RDCMan.zip
 
 Ansible was used for the purpose of learning.
 
-## points of improvment
+## points of improvment:
+
+- use regex when implementing the variables, so less variables are needed.
+- as in the previous assignment, user and password are in clear text - need to be saved in a vault in a prod environment.
