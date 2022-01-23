@@ -1,0 +1,98 @@
+---
+# Windows Installation
+- name: DNS and IIS Installation and Configuration
+  hosts: win
+  vars:
+    - IPAddress: 192.168.72.130
+    - NetworkId: 192.168.72.0/24
+    - NetworkHostId: 130
+    - ReverseDNSZoneFile: 72.168.192.in-addr.arpa.dns
+    - ReverseDNSZone: 72.168.192.in-addr.arpa
+    - SiteName: ExeFile
+  tasks:
+    - name: Create ExeFile Website Folder
+      ansible.windows.win_file:
+        path: C:\Websites\{{SiteName}}
+        state: directory
+
+    - name: Install Windows DNS Server Role
+      win_feature:
+        name: 
+          - DNS
+          - RSAT-DNS-Server
+        state: present
+
+    - name: Create DNS Zone for SomeDomain.loc
+      community.windows.win_dns_zone:
+        type: primary
+        name:  SomeDomain.loc
+        dynamic_update: none
+        replication: none
+        state: present
+    
+    - name: Create reverse lookup zone
+      ansible.windows.win_powershell:
+        script: |
+          Add-DnsServerPrimaryZone -DynamicUpdate None `
+          -NetworkId "{{NetworkId}}" `
+          -ZoneFile "{{ReverseDNSZoneFile}}"
+
+    - name: Create DNS A Record
+      community.windows.win_dns_record:
+        name: "{{SiteName}}"
+        type: "A"
+        value: "{{IPAddress}}"
+        zone: "somedomain.loc"
+
+    - name: Create matching PTR record
+      community.windows.win_dns_record:
+        name: "{{NetworkHostId}}"
+        type: "PTR"
+        value: "{{SiteName}}.somedomain.loc"
+        zone: "{{ReverseDNSZone}}"
+
+    - name: Install IIS Role and Management Console
+      win_feature:
+        name:
+          - Web-Server
+          - Web-Mgmt-Console
+        state: present
+
+    - name: Remove Default Website
+      community.windows.win_iis_website:
+        name: Default Web Site
+        state: absent
+
+    - name: Create Self-Signed Certificate
+      ansible.windows.win_powershell:
+        script: |
+          $cert = New-SelfSignedCertificate `
+          -DnsName {{SiteName}}.Somdomain.loc `
+          -CertStoreLocation cert:Localmachine\My
+          $Ansible.Result = $cert.thumbprint
+      register: thumbprint
+
+    - name: Create Test Website
+      community.windows.win_iis_website:
+        name: "{{SiteName}}"
+        state: started
+        physical_path: "C:\\Websites\\{{SiteName}}"
+    
+    - name: Set https binding for IIS_Site site
+      win_iis_webbinding:
+        name: "{{SiteName}}"
+        host_header: "{{SiteName}}.SomeDomain.loc"
+        protocol: https
+        certificate_hash: "{{ thumbprint.result }}"
+        port: 443
+        state: present
+    
+    - name: Download RDCMan.zip to
+      ansible.windows.win_get_url:
+        url: https://download.sysinternals.com/files/RDCMan.zip
+        dest: C:\Websites\{{SiteName}}\RDCMan.zip
+    
+    - name: Set name resultion to self
+      ansible.windows.win_dns_client:
+        adapter_names: '*'
+        dns_servers: 127.0.0.1
